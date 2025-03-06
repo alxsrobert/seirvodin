@@ -1,0 +1,20 @@
+Package: seirvodin
+Type: Package
+Title: SEIRV model stratified by age and region implemented in odin_dust
+Version: 1.0
+Date: 2025-02-28
+Authors@R: person("", "alxsrobert", role = c("aut", "cre"), email = "alexis.robert@lshtm.ac.uk")
+Imports:
+    dust,
+    data.table
+LinkingTo:
+    cpp11,
+    dust
+Suggests:
+    odin,
+    odin.dust,
+    testthat
+Description: Contains an SEIRV model stratified by age and region, implemented in odin_dust, along with functions to fit the model to case data, and generate stochastic simulations.
+License: GPL (>= 2)
+Encoding: UTF-8
+RoxygenNote: 7.3.2
