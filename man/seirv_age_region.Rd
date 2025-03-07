@@ -2,7 +2,44 @@
 % Please edit documentation in R/seirv_age_region.R
 \name{seirv_age_region}
 \alias{seirv_age_region}
-\title{Age and region structure SEIRV model}
+\title{Age and region structured SEIRV model}
+\arguments{
+\item{beta:}{Infection rate.}
+
+\item{delta:}{Duration of maternal immunity.}
+
+\item{X:}{Seasonality of infection rate.}
+
+\item{Y:}{Seasonality of infection rate.}
+
+\item{X_import:}{Seasonality of importations.}
+
+\item{Y_import:}{Seasonality of importations.}
+
+\item{v_fail:}{Proportion of primary vaccine failure.}
+
+\item{vacc:}{Risk of onward transmission from vaccinated cases, compared to unvaccinated cases.}
+
+\item{report_import:}{Proportion of importations reported.}
+
+\item{b:}{(optional) Spatial parameter.}
+
+\item{c:}{(optional) Spatial parameter.}
+
+\item{theta:}{(optional) Spatial parameter.}
+
+\item{v_leak:}{(optional) Waning of immunity per year (set to 0 if not set by the user).}
+
+\item{v_sec:}{(optional) Baseline risk of secondary vaccine failure (set to 0 if not set by the user).}
+
+\item{recov_X:}{(optional) Proportion of individuals starting as recovered in a given age group, X corresponds to the age group targeted (e.g. recov_7 corresponds to the proportion of individuals in the seventh age group who will start as recovered).}
+
+\item{catchup_X:}{(optional) Proportion of individuals vaccinated during a catch-up campaign (moving from V1 to V2) in a given age group, X corresponds to the age group targeted (e.g. catchup_7 corresponds to the proportion of individuals (in V1) in the seventh age group targeted by the catch-up campaign who will move to V2).}
+
+\item{catchup2_X:}{(optional) Proportion of individuals vaccinated during a catch-up campaign (moving from S and V1 to V2) in a given age group, X corresponds to the age group targeted (e.g. catchup2_7 corresponds to the proportion of individuals (in V1 or S) in the seventh age group targeted by the catch-up campaign who will move to V2).}
+
+\item{v_X:}{(optional) Proportion of individuals vaccinated (moving from S to V1) in a given age group, X corresponds to the age group targeted (e.g. v_7 corresponds to the proportion of individuals (in S) in the seventh age group targeted by the catch-up campaign who will move to V1).##' @export seirv_age_region}
+}
 \description{
-##' Our "current" seirv_age_region model. This is a dust model.
+seirv_age_region model. This is a dust model.
 }
