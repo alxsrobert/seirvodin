@@ -1,6 +1,6 @@
 # seirvodin
 
-`seirvodin` presents a compartmental moodel implemented in `odin_dust`, this model is stratified by age, region and vaccination status. The model was used in [Robert et al, Lancet Public Health, 2024](https://www.thelancet.com/journals/lanpub/article/PIIS2468-2667(24)00181-6/fulltext). The structure of the model is presented in the figure below:
+`seirvodin` presents a compartmental model implemented in `odin_dust`, this model is stratified by age, region and vaccination status. The model was used in [Robert et al, Lancet Public Health, 2024](https://www.thelancet.com/journals/lanpub/article/PIIS2468-2667(24)00181-6/fulltext). The structure of the model is presented in the figure below:
 
 ![Structure of the model for a given age and region](https://github.com/user-attachments/assets/b3ac8898-1ef3-4c6e-9763-a18004967216) (From [Robert et al, Lancet Public Health, 2024](https://www.thelancet.com/journals/lanpub/article/PIIS2468-2667(24)00181-6/fulltext))
 
