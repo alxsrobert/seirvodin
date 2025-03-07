@@ -2,13 +2,15 @@
 #'
 #' @param list_specs list containing the specification of the model fitting process, output from seirvodin::specs_run().
 #' @param list_data list containing all data needed for model fitting, expecting 8 elements: `ref_m`: contact matrix between age groups (matrix); `ref_d`: degree of connectivity between regions (matrix); `new_birth`: number of daily births per region (matrix); `mean_import_per_reg`: number of annual import by year and region (matrix);  `year_per_age`: duration of each age group (vector); `dt_vacc`: vaccine coverage by year and age (data table with at least 5 columns: years, region, coverage, yob (for year of birth), and dose); `N`: number of inhabitants at t0 by region and age (matrix);`dt_case`: data table containing the number of cases by date, age and region (three columns: date (numeric starting at 0); cases; and population (character containing unique id for a strata of vaccine status, age, and region))
-#' @param list_pars list with each element corresponding to a fitted parameter of the model. Each element must be a `pmcmc_parameter` object (generated with mcstate::pmcmc_parameter).
 #' @param model dust model.
 #' @param proposal_matrix Proposal matrix to run the MCMC, leave to NULL to start with default matrix
+#' @param init Vector of initial value for each parameter
+#' @param prior List of prior function for each parameter (for parameters without prior, the element should be  NULL)
+#' @param list_min_max list containing two vectors: `min` and `max`, each list contains the minimum (and maximum) value for each parameter
 #'
 #' @return An `mcstate_pmcmc` object, containing all information on the model fit.
 #' @export
-run_model <- function(list_specs, list_data, list_pars, model, proposal_matrix = NULL){
+run_model <- function(list_specs, list_data, init, list_prior, list_min_max, model, proposal_matrix = NULL){
   
   ## Create list containing all data
   all_data <- compute_from_data(
@@ -17,8 +19,8 @@ run_model <- function(list_specs, list_data, list_pars, model, proposal_matrix =
   
   ## Initialise list of parameters
   mcmc_pars <- create_mcmc_pars(
-    list_specs = list_specs, list_data = all_data, list_pars = list_pars, 
-    proposal_matrix = proposal_matrix
+    list_specs = list_specs, list_data = all_data, init =init, list_prior = list_prior, 
+    list_min_max = list_min_max, proposal_matrix = proposal_matrix
   )
 
   data_wide <- pivot_wider(list_data$dt_case, names_from = "population", values_from = "cases")
