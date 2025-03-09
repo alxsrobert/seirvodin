@@ -4,7 +4,7 @@
 #' @param list_specs list containing the specification, expecting at least 2 elements: `year_start`: starting year of the simulations; `N_year`: Number of years the simulations run for.
 #' @param proposal_matrix Proposal matrix to run the MCMC, if NULL it will be set to default version.
 #' @param init Vector of initial value for each parameter
-#' @param prior List of prior function for each parameter (for parameters without prior, the element should be  NULL)
+#' @param list_prior List of prior function for each parameter (for parameters without prior, the element should be  NULL)
 #' @param list_min_max list containing two vectors: `min` and `max`, each list contains the minimum (and maximum) value for each parameter
 #'
 #' @return A `pmcmc_parameters` object, containing the initial parameters, the proposal matrix and the transform function
@@ -28,9 +28,9 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
   array_cov2 <- list_data[["array_cov2"]]
   year_per_age <- list_data[["year_per_age"]]
   
-  if(!all(names(init) %in% names(prior)) || !all(names(init) %in% names(list_min_max[["min"]])) ||
+  if(!all(names(init) %in% names(list_prior)) || !all(names(init) %in% names(list_min_max[["min"]])) ||
      !all(names(init) %in% names(list_min_max[["max"]]))){
-    stop("init, prior, list_min_max[[`min`]], and list_min_max[[`max`]] should all contain the same elements")
+    stop("init, list_prior, list_min_max[[`min`]], and list_min_max[[`max`]] should all contain the same elements")
   }
   
   # Create mcstate::pmcmc_parameter from initial, prior, and min_max
