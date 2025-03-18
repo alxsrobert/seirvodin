@@ -110,7 +110,7 @@ compute_vax_cov <- function(dt_vacc, N, year_start, N_year){
   regions <- colnames(N)
   age_names <- rownames(N)
   N_reg <- length(regions)
-  N_age <- length(age)
+  N_age <- length(age_names)
   
   # Create empty data table to compute the vaccine coverage per region / age / year
   vacc_per_age <- data.table(regions = rep(toupper(regions), N_age * N_year), 
