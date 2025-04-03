@@ -59,6 +59,8 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
     waning = if(list_specs$waning == "no") 0 else if(list_specs$waning == "since_vax") 1 else
       if (list_specs$waning == "since_eli") 2, 
     
+    alpha = list_specs[["alpha"]], gamma = list_specs[["gamma"]], 
+    
     dt = 1, year_start = list_specs$year_start, year_per_age = year_per_age,
     # If the following parameters are included in pars, this reference level will be ignored
     b = 1, c = 1, theta = 1, v_leak = 0, v_sec = 0
@@ -102,6 +104,8 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
 #' @param array_cov1 Daily rate of vaccination (from S to V1)
 #' @param array_cov2 Daily rate of vaccination (from V1 to V2)
 #' @param array_new Daily number of births
+#' @param alpha Duration of incubation period.
+#' @param gamma Duration of infectious period.
 #' @param dt time step
 #' @param year_per_age Duration (in year) spent in each age group.
 #' @param waning Character values, corresponds to whether waning is included in the model, expect one of three values: "no", "since_vax", or "since_eli"
@@ -114,7 +118,7 @@ make_transform <- function(pars,m, d, import, N_time, N_age, N_reg,
                            S_init, V1_init, V2_init, Es_init, 
                            Ev1_init, Ev2_init, Is_init, Iv1_init, Iv2_init, 
                            R_init, RV1_init, RV2_init, array_cov1, array_cov2, 
-                           array_new, dt, year_per_age, waning, 
+                           array_new, dt, year_per_age, waning, alpha, gamma,
                            year_start){
   function(pars){
     # Extract parameters from the vector pars
@@ -134,7 +138,9 @@ make_transform <- function(pars,m, d, import, N_time, N_age, N_reg,
     if(any(names(pars) == "b")) b <- pars[["b"]]
     if(any(names(pars) == "c")) c <- pars[["c"]]
     if(any(names(pars) == "theta")) theta <- pars[["theta"]]
-    
+    if(any(names(pars) == "alpha")) alpha <- pars[["alpha"]]
+    if(any(names(pars) == "gamma")) gamma <- pars[["gamma"]]
+
     catchup <- rep(0, nrow(V1_init))
     catchup2 <- rep(0, nrow(V1_init))
     recov <- rep(0, nrow(V1_init))

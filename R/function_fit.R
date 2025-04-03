@@ -51,13 +51,15 @@ run_model <- function(list_specs, list_data, init, list_prior, list_min_max, mod
 #'
 #' @param N_year Number of years the simulations run for.
 #' @param year_start starting year of the simulations.
-#' @param n_steps Number of MCMC steps
+#' @param n_steps Number of MCMC steps.
 #' @param waning Character values, corresponds to whether waning is included in the model, expect one of three values: "no", "since_vax", or "since_eli"
+#' @param alpha Duration of incubation period.
+#' @param gamma Duration of infectious period.
 #'
 #' @return List of specifications
 #' @export
 #'
-specs_run <- function(N_year, year_start, n_steps, waning){
+specs_run <- function(N_year, year_start, n_steps, waning, alpha = 11, gamma = 8){
   if(!(waning %in% c("no", "since_vax", "since_eli"))) stop("waning should be `no`, `since_vax`, or `since_eli`")
   ## Duration of the run (in days)
   N_time <- 365 * N_year
@@ -68,7 +70,8 @@ specs_run <- function(N_year, year_start, n_steps, waning){
   state_names <- c("new_IS", "new_IV1", "new_IV2")
   
   return(list(state_names = state_names, year_start = year_start, N_year = N_year, 
-              N_time = N_time, n_steps = n_steps, waning = waning))
+              N_time = N_time, n_steps = n_steps, waning = waning, alpha = alpha, 
+              gamma = gamma))
 }
 
 #' Set filter function  
