@@ -1,0 +1,214 @@
+---
+title: "Implementing an SEIRV Model"
+author: "Alexis Robert"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  dpi = 150
+)
+```
+
+# Introduction
+
+This vignette demonstrates how to implement the basic SEIRV model using the `seirvodin` package. The SEIRV model is a compartmental model stratified by age, region, and vaccination status. It can be used to fit the model to case data or generate stochastic (or deterministic) simulations.
+
+# Prerequisites
+
+Before we begin, make sure you have installed the `seirvodin` package. You can install it from GitHub using the following command:
+
+```r
+devtools::install_github("alxsrobert/seirvodin")
+```
+
+# Loading the Package
+
+First, load the `seirvodin` package:
+
+```{r}
+devtools::load_all()
+# library(seirvodin)
+library(data.table)
+library(tidyr)
+```
+
+# Fitting a model with two regions, and three age groups
+
+To set up the model, we need to define the specifications and data required for the model fitting process. We will use the `specs_run()` function to generate the specifications. In this example, we do not include any waning, use 1000 steps, and run the model for 10 years.
+
+```{r}
+N_year = 5
+# Define the specifications
+specs <- specs_run(N_year = N_year, year_start = 2020, n_steps = 5000, waning = "no")
+```
+
+The model now requires a list of data, containing:
+- 
+
+This case study considers two regions, A and B, and individuals are classified in four age groups by region (<2 years old, 2-5 years old, 5-10 years old, >10 years old). We need to define a list containing all data data, which `seirvodin` will use to run the model. The list must contain a number of named elements:
+- ref_m: The contact rate between age group, this will be taken from the polymod study in `socialmixr`.
+- ref_d: Degree of connectivity between regions. In this example, connectivity between A and B is set to 2.
+- N: The number of individuals per region and age group
+- new_birth: The number of daily births per region.
+- mean_import_per_reg: The number of annual importations per region and year.
+- year_per_age: The number of years individuals spend in each age group. In this example, it will be set to c(0, 3, 5, 70).
+- dt_vacc: Vaccine coverage by year and age (data table with at least 5 columns: years, region, coverage, yob (for year of birth), and dose)
+- dt_case: Data table containing the number of cases by date, age and region.
+
+
+```{r}
+# Contact matrix between age groups
+polymod <- socialmixr::polymod
+ref_m <- 1e6 * socialmixr::contact_matrix(
+  survey = polymod,
+  countries = "United Kingdom",
+  age.limits = c(0, 2, 5, 10),
+  symmetric = TRUE, per.capita = T)$matrix.per.capita
+
+age <- c("[0-2)", "[2-5)", "[5-10)", "10+")
+
+# Duration of each age group
+year_per_age = c(2, 3, 5, 70)
+
+# Degree of connectivity between regions
+ref_d = matrix(c(1,2,2,1), nrow = 2, ncol = 2)
+
+# Number of daily births per region
+new_birth = rbind(A = rexp(365 * N_year, 1/(500/365)), B = rexp(365 * N_year, 1/(1000/365)))
+
+# Number of inhabitants at t0 by region and age
+N = cbind(A = c(1000, 1500, 3000, 50000), B = c(2000, 3000, 75000, 90000))
+rownames(N) <- age
+
+# Number of annual import by year and region
+mean_import_per_reg = cbind(A = round(rexp(N_year, 1/5)), B = round(rexp(N_year, 1/10)))
+```
+
+```{r}
+# Vaccine coverage by year and age
+# first: vaccine coverage for the first dose
+dt_vacc_dose1 = data.frame(years = 2010:2024, region = rep(c("A", "B"), each = N_year + 10), 
+                           coverage = runif(30, .85, .97), yob = rep(2010:2024 - 2, 2), dose = 1)
+# second: vaccine coverage for the second dose
+dt_vacc_dose2 = data.frame(years = 2010:2024, region = rep(c("A", "B"), each = N_year + 10), 
+                           coverage = runif(30, .75, .85), yob = rep(2010:2024 - 5, 2), dose = 2)
+# Merge both vaccine coverage data
+dt_vacc = as.data.table(rbind.data.frame(dt_vacc_dose1, dt_vacc_dose2))
+```
+
+
+```{r}
+# Import daily number of cases by region, age group and vaccination status
+data("simulated_outbreak")
+
+## Create unique row id
+simulated_outbreak[, population := paste(vaccinated, region, age_groups, sep = "_")]
+simulated_outbreak[, population := factor(population)]
+## Select columns dates, cases, and population
+simulated_outbreak <- simulated_outbreak[, .(date, cases, population)]
+
+```
+
+
+
+```{r}
+# Prepare the data
+list_data <- list(
+ref_m = ref_m,
+year_per_age = year_per_age,
+ref_d = ref_d,
+new_birth = new_birth,
+N = N,
+mean_import_per_reg = mean_import_per_reg,
+dt_vacc = dt_vacc,
+dt_case = simulated_outbreak
+)
+```
+
+# Running the Model
+
+Next, we will run the model using the `run_model()` function. This function requires the specifications, data, initial parameter values, prior functions, and minimum and maximum values for each parameter.
+
+```{r}
+# Define initial parameter values
+init <- c(beta = 0.5, delta = 0.1, X = 0.1, Y = 0.1, X_import = 0.1, Y_import = 0.1, 
+          v_fail = 0.02, vacc = 0.5, report_import = 0.5, recov_4 = .9, recov_3 = .5, 
+          catchup2_3 = .2, b = .5, c = .5, theta = .5)
+```
+
+
+
+```{r}
+# Define prior functions
+list_prior <- list(
+  delta = function(x) dnorm(1/x, mean = 100, sd = 15, log = TRUE),
+  v_fail = function(x) dnorm(x, mean = 0.02, sd = 0.01, log = TRUE),
+  report_import = function(x) dnorm(x, mean = 0.5, sd = 0.1, log = TRUE)
+)
+
+# Define minimum and maximum values for each parameter
+list_min_max <- list(
+  min = c(beta = 0, delta = 0.003, X = 0, Y = 0, X_import = 0, Y_import = 0, v_fail = 0, vacc = 0, report_import = 0, recov_4 = 0, recov_3 = 0, catchup2_3 = 0, b = 0, c = 0, theta = 0),
+  max = c(beta = 50, delta = 0.2, X = 1, Y = 7, X_import = 1, Y_import = 7, v_fail = 1, vacc = 1, report_import = 1, recov_4 = 1, recov_3 = 1, catchup2_3 = 1, b = 1, c = 1, theta = 1)
+)
+
+# Run the model
+model_run <- run_model(specs, list_data, init, list_prior, list_min_max, seirv_age_region)
+```
+
+```{r}
+new_init = model_run$pars[specs$n_steps,]
+
+new_proposal_matrix <- cov(model_run$pars[-c(1:1000),])
+
+# Run the model
+model_run2 <- run_model(specs, list_data, new_init, list_prior, list_min_max, seirv_age_region, new_proposal_matrix)
+```
+
+```{r}
+last_init = model_run2$pars[specs$n_steps,]
+
+last_proposal_matrix <- cov(model_run2$pars[-c(1:1000),])
+
+# Run the model
+last_model_run <- run_model(specs, list_data, last_init, list_prior, list_min_max, seirv_age_region, last_proposal_matrix)
+```
+
+
+# Generating Outbreaks
+
+Once the model has been run, we can generate stochastic outbreaks using the `generate_outbreaks()` function. This function requires the model output, specifications, data, and the number of simulations to generate.
+
+```{r}
+# Define the specifications for the simulations
+sim_specs <- specs_simulations(N_year = N_year, year_start = 2020, waning = "no", burnin = 2000, n_samples = 10)
+
+# Generate outbreaks
+outbreaks <- generate_outbreaks(last_model_run, seirv_age_region, sim_specs, list_data, n_part = 10, aggreg_year = TRUE, verbose = TRUE)
+```
+
+# Interpreting the Results
+
+The `outbreaks` object contains the number of cases by compartment (stratified by vaccine status, age, and region), simulation, and day (or year if `aggreg_year` is `TRUE`). You can use this data to analyze the model's behavior and make predictions.
+
+```{r}
+# Example: Plot the number of cases over time
+library(ggplot2)
+cases <- apply(outbreaks, c(2, 3), sum)
+quants <- t(apply(cases, 2, function(x) quantile(x, c(0.025, .25, .5, .75, .975))))
+colnames(quants) <- paste0("quantile_", c("2_5", "25", "50", "75", "97_5"))
+quants <- cbind.data.frame(time = specs$year_start + seq_len(specs$N_year), quants)
+ggplot(quants, aes(x = time, y = quantile_50)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = quantile_2_5, ymax = quantile_97_5), alpha = .2) + 
+  geom_ribbon(aes(ymin = quantile_25, ymax = quantile_75), alpha = .6) + 
+  labs(title = "Number of Cases Over Time", x = "Time (days)", y = "Number of Cases")
+```
+
+# Conclusion
+
+In this vignette, we demonstrated how to implement the basic SEIRV model using the `seirvodin` package. We covered setting up the model, running it, generating outbreaks, and interpreting the results. The `seirvodin` package provides a powerful tool for modeling infectious diseases and can be customized to fit various scenarios.
