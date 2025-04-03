@@ -355,9 +355,10 @@ update(iter) <- step + 1
 
 ## Initialise the number of importations / dimensions of the matrices
 mean_import[,] <- user()
-dim(mean_import) <- c(10, N_reg)
+dim(mean_import) <- c(N_year, N_reg)
 dim(import_t) <- c(N_age, N_reg)
 N_time <- user(2)
+N_year <- N_time/ 365
 
 
 #### 6- Compute the number of individuals ageing per region / age ####
