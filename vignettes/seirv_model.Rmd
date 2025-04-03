@@ -3,6 +3,10 @@ title: "Implementing an SEIRV Model"
 author: "Alexis Robert"
 date: "`r Sys.Date()`"
 output: html_document
+vignette: >
+  %\VignetteIndexEntry{seirv_model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r, include = FALSE}
@@ -15,7 +19,7 @@ knitr::opts_chunk$set(
 
 # Introduction
 
-This vignette demonstrates how to implement the basic SEIRV model using the `seirvodin` package. The SEIRV model is a compartmental model stratified by age, region, and vaccination status. It can be used to fit the model to case data or generate stochastic (or deterministic) simulations.
+This vignette shows how to implement an age and region stratified SEIRV model using the `seirvodin` package. It can be used to fit the model to case data and generate stochastic (or deterministic) simulations.
 
 # Prerequisites
 
@@ -27,38 +31,84 @@ devtools::install_github("alxsrobert/seirvodin")
 
 # Loading the Package
 
-First, load the `seirvodin` package:
+First, load the `seirvodin` package, along with packages needed to run the analysis:
 
 ```{r}
-devtools::load_all()
-# library(seirvodin)
+library(seirvodin)
 library(data.table)
 library(tidyr)
+library(socialmixr)
+library(ggplot2)
 ```
+
+# Description of the model
+
+The model presented in `seirvodin` is stratified by age, region, and vaccination status. It has been fully described in [Robert et al, 2024][https://www.thelancet.com/journals/lanpub/article/PIIS2468-2667(24)00181-6/fulltext] (for a detailed description, see Supplementary Material section 1). To remain succinct and focused on the functions included in `seirvodin`, this vignette does not contain a detailed description of the model, but instead presents a short description its main elements. All equations can be found in the Supplementary Material of [Robert et al, 2024][https://www.thelancet.com/journals/lanpub/article/PIIS2468-2667(24)00181-6/fulltext].
+
+## Infection rate
+
+The infection rate (`beta`) is estimated by the model, and is the same in each region, age, and year. The rate of onward transmission in a given region is affected by the contact pattern between age groups, the connectivity to other regions, the age distribution of inhabitants, and proportion of vaccinated and immune individuals in the region. Two parameters `X` and `Y` are estimated by the model to quantify the seasonality in infection rate (i.e. how the infection rate changes each day of the year). Therefore, the model estimates three parameters to quantify the infection rate through time: `beta`, `X`, and `Y`.
+
+## Vaccine stratification
+
+The model uses an all-or-nothing vaccination structure to represent primary vaccine failure,  with `v_fail` corresponding to the proportion of vaccine failures. Upon first vaccination, individuals have a `v_fail` risk of not being protected against infection , and 1 − `v_fail` chances of gaining full protection against infection. When and if individuals who did not get protected get their second dose of vaccine, they have another `v_fail` risk of not gaining protection, and a 1 − `v_fail` chances of gaining full protection. 
+
+The model also includes `vacc`, the reduction in onward transmission for vaccinated cases compared to unvaccinated cases. This reduction corresponds to both potential protection from the vaccine, and clustering of vaccinated cases with other vaccinated individuals.
+
+## Waning of immunity
+
+If users want to include waning of vaccine-induced immunity, the “vaccinated” compartments become leaky and are not fully protective anymore. The parameter `v_leak` quantifies the amount of protection lost by the vaccines in absence of primary vaccine failure and is estimated by the model. Protection wanes at the same rate for one-dose and two-dose recipients. The baseline risk of secondary vaccine failure, `v_sec`, is set to 0 by default (i.e. by default, the vaccinated compartments are not leaky).
+
+## Age stratification
+
+The model uses the vaccine data to compute the number of children moving from S to V1, and from V1 to V2 in each age group at each year. The contact pattern between age groups is quantified by a contact matrix, for instance computed from the POLYMOD study.
+
+## Region stratification
+
+Although migration of inhabitants is not represented in the model, the model includes a spatial kernel, which quantifies the rate of transmission from one region to another. This kernel is a gravity model, depending on population in both regions, and distance. The spatial kernel follows a gravity model. The rate of transmission between two different regions 𝑘 and 𝑙 is computed as:
+
+$$d(k,l) = (N_l^b) * theta * \frac{1}{D(k,l)} * \frac{N_k^c}{N_k}$$
+
+With `𝑁_k` and `N_l` the number of inhabitants in regions k and l, `D(k, l)` the distance between k and l, and `b`, `c` and `theta` parameters estimated by the model.
+
+## Existing immunity
+
+The model requires the distribution of vaccine and recovery status for each age group and region at the start date of the fit. A mix of estimated parameters and vaccination data can be used to define the distribution of immunity at the start of the fit (or simulations).
+
+The model uses the duration of maternal immunity (parameter `delta`) to estimate the proportion of children below one-year-old who are susceptible to infection. New births are placed in the M compartment, where they are fully protected from infection, and can only move to the S compartment (the rate of movement is computed from the duration of the maternal protection).
+
+## Importations
+
+The model uses the number of importations per year and region to compute a daily number of importation per region and age group. The annual number of importation is divided by 365 and weighted by the number of inhabitants per age group, to get the daily importation rate by age group and region. As importations may be less likely to be reported than other cases, the importation rate by region is divided by `p_import`, parameter estimated by the model corresponding to the probability of reporting of imported cases. The model also estimates `X_import` and `Y_import`, two parameter that define the within-year seasonality of importations
 
 # Fitting a model with two regions, and three age groups
 
-To set up the model, we need to define the specifications and data required for the model fitting process. We will use the `specs_run()` function to generate the specifications. In this example, we do not include any waning, use 1000 steps, and run the model for 10 years.
+Firstly, we fit the model to simulated case data. We use a deterministic fit, and the simulated data were generated using specifications corresponding to a measles outbreak.
+
+## Define specifications
+
+To fit the SEIRV model, we need to define the model specifications and data. We first use the `specs_run()` function to generate the specifications. In this example, we do not include any waning in the model, use 1000 steps, and run the model for 10 years. We also use the default values for the incubation and infectious period.
 
 ```{r}
 N_year = 5
 # Define the specifications
-specs <- specs_run(N_year = N_year, year_start = 2020, n_steps = 5000, waning = "no")
+specs <- specs_run(N_year = N_year, year_start = 2020, n_steps = 1000, 
+                   waning = "no", alpha = 11, gamma = 8)
 ```
 
-The model now requires a list of data, containing:
-- 
+## Define the data
 
-This case study considers two regions, A and B, and individuals are classified in four age groups by region (<2 years old, 2-5 years old, 5-10 years old, >10 years old). We need to define a list containing all data data, which `seirvodin` will use to run the model. The list must contain a number of named elements:
-- ref_m: The contact rate between age group, this will be taken from the polymod study in `socialmixr`.
-- ref_d: Degree of connectivity between regions. In this example, connectivity between A and B is set to 2.
-- N: The number of individuals per region and age group
-- new_birth: The number of daily births per region.
-- mean_import_per_reg: The number of annual importations per region and year.
-- year_per_age: The number of years individuals spend in each age group. In this example, it will be set to c(0, 3, 5, 70).
-- dt_vacc: Vaccine coverage by year and age (data table with at least 5 columns: years, region, coverage, yob (for year of birth), and dose)
-- dt_case: Data table containing the number of cases by date, age and region.
+In this case study, we consider two regions, A and B, and individuals are classified in four age groups by region (<2 years old, 2-5 years old, 5-10 years old, >10 years old). We need to define a list containing all data used in the analysis, which `seirvodin` will use to run the model. The list must contain a number of named elements:
+- ref_m: A numeric matrix containing the contact rate between age group, this will be taken from the polymod study in `socialmixr`.
+- ref_d: A numeric matrix containing the degree of connectivity between regions. In this example, A and B are neighbouring regions.
+- N: A numeric matrix containing the number of individuals per age group (rows) and region (columns).
+- new_birth: A numeric matrix containing the daily number of births per region.
+- mean_import_per_reg: A numeric matrix containing the number of annual importations per year (rows) and region (columns).
+- year_per_age: A numeric vector containing the number of years individuals spend in each age group. In this example, it will be set to c(0, 3, 5, 70).
+- dt_vacc: A data table containing the vaccine coverage by year, age and region (data table with at least 5 columns: `years`, `region`, `yob` (for year of birth), `dose` (1 or 2), and `coverage`).
+- dt_case: Data table containing the number of cases by date, age and region (data table with at least 3 columns: `date` (numeric from 1 to the number of days in the data), `population` (character containing unique id for each strata of vaccine status, age, and region), and `cases` (number of cases reported at this date in the population)).
 
+We create each element of the data list:
 
 ```{r}
 # Contact matrix between age groups
@@ -72,32 +122,36 @@ ref_m <- 1e6 * socialmixr::contact_matrix(
 age <- c("[0-2)", "[2-5)", "[5-10)", "10+")
 
 # Duration of each age group
-year_per_age = c(2, 3, 5, 70)
+year_per_age <- c(2, 3, 5, 70)
 
 # Degree of connectivity between regions
-ref_d = matrix(c(1,2,2,1), nrow = 2, ncol = 2)
+ref_d <- matrix(c(1,2,2,1), nrow = 2, ncol = 2)
 
 # Number of daily births per region
-new_birth = rbind(A = rexp(365 * N_year, 1/(500/365)), B = rexp(365 * N_year, 1/(1000/365)))
+new_birth <- rbind(A = rexp(365 * N_year, 1/(500/365)), 
+                   B = rexp(365 * N_year, 1/(1000/365)))
 
 # Number of inhabitants at t0 by region and age
-N = cbind(A = c(1000, 1500, 3000, 50000), B = c(2000, 3000, 75000, 90000))
+N <- cbind(A = c(1000, 1500, 3000, 50000), B = c(2000, 3000, 75000, 90000))
 rownames(N) <- age
 
 # Number of annual import by year and region
-mean_import_per_reg = cbind(A = round(rexp(N_year, 1/5)), B = round(rexp(N_year, 1/10)))
+mean_import_per_reg <- cbind(A = round(rexp(N_year, 1/5)),
+                             B = round(rexp(N_year, 1/10)))
 ```
 
 ```{r}
 # Vaccine coverage by year and age
 # first: vaccine coverage for the first dose
-dt_vacc_dose1 = data.frame(years = 2010:2024, region = rep(c("A", "B"), each = N_year + 10), 
-                           coverage = runif(30, .85, .97), yob = rep(2010:2024 - 2, 2), dose = 1)
+dt_vacc_dose1 <- data.frame(
+  years = 2010:2024, region = rep(c("A", "B"), each = N_year + 10), 
+  coverage = runif(30, .85, .97), yob = rep(2010:2024 - 2, 2), dose = 1)
 # second: vaccine coverage for the second dose
-dt_vacc_dose2 = data.frame(years = 2010:2024, region = rep(c("A", "B"), each = N_year + 10), 
-                           coverage = runif(30, .75, .85), yob = rep(2010:2024 - 5, 2), dose = 2)
+dt_vacc_dose2 <- data.frame(
+  years = 2010:2024, region = rep(c("A", "B"), each = N_year + 10), 
+  coverage = runif(30, .75, .85), yob = rep(2010:2024 - 5, 2), dose = 2)
 # Merge both vaccine coverage data
-dt_vacc = as.data.table(rbind.data.frame(dt_vacc_dose1, dt_vacc_dose2))
+dt_vacc <- as.data.table(rbind.data.frame(dt_vacc_dose1, dt_vacc_dose2))
 ```
 
 
@@ -106,41 +160,79 @@ dt_vacc = as.data.table(rbind.data.frame(dt_vacc_dose1, dt_vacc_dose2))
 data("simulated_outbreak")
 
 ## Create unique row id
-simulated_outbreak[, population := paste(vaccinated, region, age_groups, sep = "_")]
+simulated_outbreak[, population := paste(vaccinated, region, age_groups, 
+                                         sep = "_")]
 simulated_outbreak[, population := factor(population)]
 ## Select columns dates, cases, and population
 simulated_outbreak <- simulated_outbreak[, .(date, cases, population)]
 
 ```
 
-
+We assemble each element into `list_data`:
 
 ```{r}
 # Prepare the data
 list_data <- list(
-ref_m = ref_m,
-year_per_age = year_per_age,
-ref_d = ref_d,
-new_birth = new_birth,
-N = N,
-mean_import_per_reg = mean_import_per_reg,
-dt_vacc = dt_vacc,
-dt_case = simulated_outbreak
+  ref_m = ref_m,
+  year_per_age = year_per_age,
+  ref_d = ref_d,
+  new_birth = new_birth,
+  N = N,
+  mean_import_per_reg = mean_import_per_reg,
+  dt_vacc = dt_vacc,
+  dt_case = simulated_outbreak
 )
 ```
 
-# Running the Model
+## Define the initial parameter values and prior
 
-Next, we will run the model using the `run_model()` function. This function requires the specifications, data, initial parameter values, prior functions, and minimum and maximum values for each parameter.
+The `run_model` function also requires the prior functions, initial, minimum, and maximum value of each parameter.
+
+Various parameters can be estimated by the model, some are required for the model to run, others are optional:
+* `beta`: Infection rate.
+* `delta`: 1/Duration of maternal immunity.
+* `X`: Seasonality of infection rate.
+* `Y`: Seasonality of infection rate.
+* `X_import`: Seasonality of importations.
+* `Y_import`: Seasonality of importations.
+* `v_fail`: Proportion of primary vaccine failure.
+* `vacc`: Risk of onward transmission from vaccinated cases, compared to unvaccinated cases.
+* `report_import`: Proportion of importations reported
+* `b`: (optional) Spatial parameter.
+* `c`: (optional) Spatial parameter.
+* `theta`: (optional) Spatial parameter.
+* `v_leak`: (optional) Waning of immunity per year (set to 0 if not set by the user).
+* `v_sec`: (optional) Baseline risk of secondary vaccine failure (set to 0 if not set by the user).
+* `recov_X`: (optional) Proportion of individuals starting as recovered in a given age group, X corresponds to the age group targeted (e.g. `recov_7` corresponds to the proportion of individuals in the seventh age group who will start as recovered).
+* `catchup_X`: (optional) Proportion of individuals vaccinated during a catch-up campaign (moving from V1 to V2) in a given age group, X corresponds to the age group targeted (e.g. `catchup_7` corresponds to the proportion of individuals (in V1) in the seventh age group targeted by the catch-up campaign who will move to V2).
+* `catchup2_X`: (optional) Proportion of individuals vaccinated during a catch-up campaign (moving from S and V1 to V2) in a given age group, X corresponds to the age group targeted (e.g. `catchup2_7` corresponds to the proportion of individuals (in V1 or S) in the seventh age group targeted by the catch-up campaign who will move to V2).
+* `v_X`: (optional) Proportion of individuals vaccinated (moving from S to V1) in a given age group, X corresponds to the age group targeted (e.g. `v_7` corresponds to the proportion of individuals (in S) in the seventh age group targeted by the catch-up campaign who will move to V1).
+
+In this example, the model will estimate the spatial kernel between A and B (`theta`, `b`, and `c` are estimated), a proportion of the population in individuals aged 5-10 and above 10 will start off recovered (`recov_3` and `recov_4` are estimated by the model). Finally, a proportion of individuals aged 5-10 will have received two doses of vaccine through a catch up campaign prior to the start of the fitting period (`catchup2_3` is estimated by the model).
 
 ```{r}
 # Define initial parameter values
-init <- c(beta = 0.5, delta = 0.1, X = 0.1, Y = 0.1, X_import = 0.1, Y_import = 0.1, 
-          v_fail = 0.02, vacc = 0.5, report_import = 0.5, recov_4 = .9, recov_3 = .5, 
-          catchup2_3 = .2, b = .5, c = .5, theta = .5)
+init <- c(beta = 0.5, delta = 0.1, X = 0.1, Y = 0.1, X_import = 0.1, 
+          Y_import = 0.1, v_fail = 0.02, vacc = 0.5, report_import = 0.5, 
+          recov_3 = .5, recov_4 = .9, catchup2_3 = .2, b = .5, c = .5, 
+          theta = .5)
 ```
 
+We also create a list containing the minimum and maximum value of each parameter:
 
+```{r}
+# Define minimum and maximum values for each parameter
+list_min_max <- list(
+  min = c(beta = 0, delta = 0.003, X = 0, Y = 0, X_import = 0, Y_import = 0, 
+          v_fail = 0, vacc = 0, report_import = 0, recov_4 = 0, recov_3 = 0, 
+          catchup2_3 = 0, b = 0, c = 0, theta = 0),
+  max = c(beta = 50, delta = 0.2, X = 1, Y = 7, X_import = 1, Y_import = 7, 
+          v_fail = 1, vacc = 1, report_import = 1, recov_4 = 1, recov_3 = 1, 
+          catchup2_3 = 1, b = 1, c = 1, theta = 1)
+)
+```
+
+Most parameters are not given a prior function, but we have some information on the duration of maternal immunity (`delta`, which should be around 100 days), the risk of primary vaccine failure (`v_fail` should be around 2\%), and the report rate of importations (thought to be around 50\%).
 
 ```{r}
 # Define prior functions
@@ -149,66 +241,77 @@ list_prior <- list(
   v_fail = function(x) dnorm(x, mean = 0.02, sd = 0.01, log = TRUE),
   report_import = function(x) dnorm(x, mean = 0.5, sd = 0.1, log = TRUE)
 )
-
-# Define minimum and maximum values for each parameter
-list_min_max <- list(
-  min = c(beta = 0, delta = 0.003, X = 0, Y = 0, X_import = 0, Y_import = 0, v_fail = 0, vacc = 0, report_import = 0, recov_4 = 0, recov_3 = 0, catchup2_3 = 0, b = 0, c = 0, theta = 0),
-  max = c(beta = 50, delta = 0.2, X = 1, Y = 7, X_import = 1, Y_import = 7, v_fail = 1, vacc = 1, report_import = 1, recov_4 = 1, recov_3 = 1, catchup2_3 = 1, b = 1, c = 1, theta = 1)
-)
-
-# Run the model
-model_run <- run_model(specs, list_data, init, list_prior, list_min_max, seirv_age_region)
 ```
 
+## Run the SEIRV model
+
+We can now use the specifications, data, initial value, prior distribution, minimum and maximum value to run the SEIRV model using the function `run_model`:
+
 ```{r}
+# Run the model
+model_run <- run_model(
+  specs, list_data, init, list_prior, list_min_max, seirv_age_region)
+```
+
+`model_run` is an `mcstate_pmcmc` object, and mainly contains two elements that help analyse the model fit: `pars` contains the value of each parameter at each iteration, and `probabilities` contains the log-prior, log-likelihood, and log-posterior for each iteration.
+
+```{r}
+# Values of the parameters in the first 5 iterations
+model_run$pars[1:5,]
+# Acceptance rate
+nrow(unique(model_run$pars))/specs$n_steps
+
+ggplot(model_run$probabilities, aes(x = seq_len(specs$n_steps), y = log_posterior)) + geom_line() +   labs(x = "Iteration", y = "log-posterior")
+```
+
+We re-run the model, changing the starting values to the final values of the first run, and manually setting the proposal matrix for the MCMC to the covariance matrix of the first run.
+
+```{r}
+# Define new starting values
 new_init = model_run$pars[specs$n_steps,]
 
-new_proposal_matrix <- cov(model_run$pars[-c(1:1000),])
+# Define the proposal matrix
+new_proposal_matrix <- cov(model_run$pars[-c(1:500),])
 
 # Run the model
-model_run2 <- run_model(specs, list_data, new_init, list_prior, list_min_max, seirv_age_region, new_proposal_matrix)
+model_run <- run_model(
+  specs, list_data, new_init, list_prior, list_min_max, seirv_age_region,
+  new_proposal_matrix)
 ```
 
-```{r}
-last_init = model_run2$pars[specs$n_steps,]
+# Simulating stochastic outbreaks
 
-last_proposal_matrix <- cov(model_run2$pars[-c(1:1000),])
-
-# Run the model
-last_model_run <- run_model(specs, list_data, last_init, list_prior, list_min_max, seirv_age_region, last_proposal_matrix)
-```
-
-
-# Generating Outbreaks
-
-Once the model has been run, we can generate stochastic outbreaks using the `generate_outbreaks()` function. This function requires the model output, specifications, data, and the number of simulations to generate.
+Once the model has been run, we can generate stochastic outbreaks using the `generate_outbreaks()` function. This function requires the model output, specifications, data, and the number of simulations to generate. To include waning, set `waning = "since_vax"`.
 
 ```{r}
 # Define the specifications for the simulations
-sim_specs <- specs_simulations(N_year = N_year, year_start = 2020, waning = "no", burnin = 2000, n_samples = 10)
+sim_specs <- specs_simulations(
+  N_year = N_year, year_start = 2020, waning = "no", burnin = 500, n_samples = 10)
 
 # Generate outbreaks
-outbreaks <- generate_outbreaks(last_model_run, seirv_age_region, sim_specs, list_data, n_part = 10, aggreg_year = TRUE, verbose = TRUE)
+outbreaks <- generate_outbreaks(
+  model_run, seirv_age_region, sim_specs, list_data, n_part = 10,
+  aggreg_year = TRUE, verbose = FALSE)
 ```
 
-# Interpreting the Results
+# Visualise the simulations
 
 The `outbreaks` object contains the number of cases by compartment (stratified by vaccine status, age, and region), simulation, and day (or year if `aggreg_year` is `TRUE`). You can use this data to analyze the model's behavior and make predictions.
 
 ```{r}
 # Example: Plot the number of cases over time
-library(ggplot2)
 cases <- apply(outbreaks, c(2, 3), sum)
 quants <- t(apply(cases, 2, function(x) quantile(x, c(0.025, .25, .5, .75, .975))))
 colnames(quants) <- paste0("quantile_", c("2_5", "25", "50", "75", "97_5"))
-quants <- cbind.data.frame(time = specs$year_start + seq_len(specs$N_year), quants)
+quants <- cbind.data.frame(time = specs$year_start + seq_len(specs$N_year), 
+                           quants)
 ggplot(quants, aes(x = time, y = quantile_50)) +
   geom_line() +
   geom_ribbon(aes(ymin = quantile_2_5, ymax = quantile_97_5), alpha = .2) + 
   geom_ribbon(aes(ymin = quantile_25, ymax = quantile_75), alpha = .6) + 
-  labs(title = "Number of Cases Over Time", x = "Time (days)", y = "Number of Cases")
+  labs(title = "Number of Cases by year", x = "Time (year)", y = "Number of Cases")
 ```
 
 # Conclusion
 
-In this vignette, we demonstrated how to implement the basic SEIRV model using the `seirvodin` package. We covered setting up the model, running it, generating outbreaks, and interpreting the results. The `seirvodin` package provides a powerful tool for modeling infectious diseases and can be customized to fit various scenarios.
+In this vignette, we demonstrated how to implement an age and region stratified SEIRV model using the `seirvodin` package. We covered setting up the model, running it, generating outbreaks, and interpreting the results. 
