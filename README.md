@@ -27,7 +27,7 @@ Five functions from `seirvodin` are exported:
 
 The `seirv_age_region` model expects at least 9 parameters, and has several optional parameters:
 * `beta`: Infection rate.
-* `delta`: Duration of maternal immunity.
+* `delta`: 1/Duration of maternal immunity.
 * `X`: Seasonality of infection rate.
 * `Y`: Seasonality of infection rate.
 * `X_import`: Seasonality of importations.

@@ -34,7 +34,6 @@ compute_from_data <- function(list_data, list_specs){
 #' @param year_per_age Duration (in year) spent in each age group.
 #' @param year_start starting year.
 #'
-#'
 #' @noRd
 #' @keywords internal
 compute_initial_state <- function(dt_vacc, N, year_per_age, year_start){
@@ -43,6 +42,9 @@ compute_initial_state <- function(dt_vacc, N, year_per_age, year_start){
   age_names <- rownames(N)
   N_reg <- length(regions)
   N_age <- length(age)
+  
+  # avoid data.table NOTE
+  yob <- dose <- years <- region <- NULL
 
   ## Define vaccine uptake and proportion of recovered at t = 0
   ## Initialise empty matrices for proportion of recovery and coverage
@@ -115,6 +117,9 @@ compute_vax_cov <- function(dt_vacc, N, year_start, N_year){
   age_names <- rownames(N)
   N_reg <- length(regions)
   N_age <- length(age_names)
+  
+  # avoid data.table NOTE
+  agegroup <- age <- v1 <- v2 <- coverage <- year <- NULL
   
   # Create empty data table to compute the vaccine coverage per region / age / year
   vacc_per_age <- data.table(regions = rep(toupper(regions), N_age * N_year), 

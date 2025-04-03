@@ -21,5 +21,8 @@
 ##' @param v_X: (optional) Proportion of individuals vaccinated (moving from S to V1) in a given age group, X corresponds to the age group targeted (e.g. v_7 corresponds to the proportion of individuals (in S) in the seventh age group targeted by the catch-up campaign who will move to V1).##' @export seirv_age_region
 ##' @param alpha: (optional) Duration of incubation period (default to 11 days).
 ##' @param gamma: (optional) Duration of infectious period (default to 8 days).
+##' 
+##' @import odin.dust
+##' 
 ##' @export seirv_age_region
 NULL

@@ -13,7 +13,8 @@ specs_run(N_year, year_start, n_steps, waning, alpha = 11, gamma = 8)
 
 \item{n_steps}{Number of MCMC steps.}
 
-\item{waning}{Character values, corresponds to whether waning is included in the model, expect one of three values: "no", "since_vax", or "since_eli"}
+\item{waning}{Character values, corresponds to whether waning is included in
+the model, expect one of three values: "no", "since_vax", or "since_eli"}
 
 \item{alpha}{Duration of incubation period.}
 

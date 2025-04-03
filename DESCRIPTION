@@ -5,16 +5,23 @@ Version: 1.0
 Date: 2025-02-28
 Authors@R: person("", "alxsrobert", role = c("aut", "cre"), email = "alexis.robert@lshtm.ac.uk")
 Imports:
-    dust,
-    data.table
+    odin.dust,
+    data.table,
+    mcstate,
+    tidyr
 LinkingTo:
     cpp11,
     dust
 Suggests:
     odin,
-    odin.dust,
+    dust,
+    socialmixr,
+    ggplot2,
+    knitr,
+    rmarkdown,
     testthat
 Description: Contains an SEIRV model stratified by age and region, implemented in odin_dust, along with functions to fit the model to case data, and generate stochastic simulations.
-License: GPL (>= 2)
+License: MIT + file LICENSE
 Encoding: UTF-8
+VignetteBuilder: knitr
 RoxygenNote: 7.3.2
