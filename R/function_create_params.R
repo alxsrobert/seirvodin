@@ -28,9 +28,9 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
   array_cov2 <- list_data[["array_cov2"]]
   year_per_age <- list_data[["year_per_age"]]
   
-  if(!all(names(init) %in% names(list_prior)) || !all(names(init) %in% names(list_min_max[["min"]])) ||
+  if(!all(names(init) %in% names(list_min_max[["min"]])) ||
      !all(names(init) %in% names(list_min_max[["max"]]))){
-    stop("init, list_prior, list_min_max[[`min`]], and list_min_max[[`max`]] should all contain the same elements")
+    stop("init, list_min_max[[`min`]], and list_min_max[[`max`]] should all contain the same elements")
   }
   
   # Create mcstate::pmcmc_parameter from initial, prior, and min_max
@@ -40,7 +40,7 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
   # Create proposal matrix
   if(is.null(proposal_matrix)){
     proposal_matrix <- matrix(0, nrow = length(list_pars), ncol = length(list_pars))
-    colnames(proposal_matrix) <- rownames(proposal_matrix) <- names(pars)
+    colnames(proposal_matrix) <- rownames(proposal_matrix) <- names(list_pars)
     diag(proposal_matrix) <- .01
   }
   
@@ -147,7 +147,7 @@ make_transform <- function(pars,m, d, import, N_time, N_age, N_reg,
     v <- rep(0, nrow(V1_init))
     
     V_tot <- V1_init + V2_init
-    # Set proportion of recovered in 2010 per age group
+    # Set proportion of recovered at year_start per age group
     recov <- R_init * 0
     
     for(i in seq_along(catchup)){
@@ -181,6 +181,8 @@ make_transform <- function(pars,m, d, import, N_time, N_age, N_reg,
          Ev1_init = Ev1_init, Ev2_init = Ev2_init, Is_init = Is_init, 
          Iv1_init = Iv1_init, Iv2_init = Iv2_init, 
          
+         alpha = 1 / alpha, gamma = 1 / gamma, 
+         
          recov = recov, R_init = R_init * 0, RV1_init = R_init * 0, RV2_init = R_init * 0,
          S_init = S_init + R_init,
          
@@ -205,9 +207,10 @@ create_pars <- function(init, prior, min, max){
   pars <- list()
   for(i in seq_along(init)){
     name_i <- names(init)[i]
+    if(!any(names(prior) == name_i)) p <- NULL else p <- prior[[name_i]]
     pars <- append(pars, list(mcstate::pmcmc_parameter(
       name = names(init)[i], initial = init[[name_i]], min = min[[name_i]], 
-      max = max[[name_i]], prior = prior[[name_i]])))
+      max = max[[name_i]], prior = p)))
   }
   return(pars)
 }
