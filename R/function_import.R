@@ -34,15 +34,17 @@ compute_from_data <- function(list_data, list_specs){
 #' @param year_per_age Duration (in year) spent in each age group.
 #' @param year_start starting year.
 #'
-#'
 #' @noRd
 #' @keywords internal
 compute_initial_state <- function(dt_vacc, N, year_per_age, year_start){
   #### Define initial number of cases in compartment
   regions <- colnames(N)
-  age <- rownames(N)
+  age_names <- rownames(N)
   N_reg <- length(regions)
   N_age <- length(age)
+  
+  # avoid data.table NOTE
+  yob <- dose <- years <- region <- NULL
 
   ## Define vaccine uptake and proportion of recovered at t = 0
   ## Initialise empty matrices for proportion of recovery and coverage
@@ -56,7 +58,7 @@ compute_initial_state <- function(dt_vacc, N, year_per_age, year_start){
   mean_vacc2 <- numeric(N_reg)
   nb_years <- 0
   yob_transition <- c(year_start - cumsum(year_per_age))
-
+  
   for(j in seq_along(yob_transition[-1])){
     age <- j + 1
     max_year <- yob_transition[j]
@@ -66,15 +68,19 @@ compute_initial_state <- function(dt_vacc, N, year_per_age, year_start){
       if(length(unique(dt_vacc[yob %in% seq(min_year, max_year) & dose == 1, years])) == 1){
         last_vacc <- unique(dt_vacc[yob %in% seq(min_year, max_year) & dose == 1, years])
       } else{
-        last_vacc <- max(dt_vacc[yob %in% seq(min_year, max_year) & dose == 1 & years <= 2010, years])
+        last_vacc <- max(dt_vacc[yob %in% seq(min_year, max_year) & dose == 1 & years <= year_start, years])
       }
-      
+
       cov1[age, unique(dt_vacc[yob <= max_year & yob >= min_year & dose == 1, region])] <- 
         dt_vacc[yob <= max_year & yob >= min_year & dose == 1 & years == last_vacc, 
                 lapply(.SD, mean), by = region, .SDcols = "coverage"]$coverage
-      cov2[age, unique(dt_vacc[yob <= max_year & yob >= min_year & dose == 2, region])] <- 
-        dt_vacc[yob <= max_year & yob >= min_year & dose == 2 & years == last_vacc, 
-                lapply(.SD, mean), by = region, .SDcols = "coverage"]$coverage
+      
+      if(any(dt_vacc$yob <= max_year & dt_vacc$yob >= min_year & dt_vacc$dose == 2 & 
+             dt_vacc$years == last_vacc)){
+        cov2[age, unique(dt_vacc[yob <= max_year & yob >= min_year & dose == 2, region])] <- 
+          dt_vacc[yob <= max_year & yob >= min_year & dose == 2 & years == last_vacc, 
+                  lapply(.SD, mean), by = region, .SDcols = "coverage"]$coverage
+      }
     }
   }
   
@@ -111,6 +117,9 @@ compute_vax_cov <- function(dt_vacc, N, year_start, N_year){
   age_names <- rownames(N)
   N_reg <- length(regions)
   N_age <- length(age_names)
+  
+  # avoid data.table NOTE
+  agegroup <- age <- v1 <- v2 <- coverage <- year <- NULL
   
   # Create empty data table to compute the vaccine coverage per region / age / year
   vacc_per_age <- data.table(regions = rep(toupper(regions), N_age * N_year), 

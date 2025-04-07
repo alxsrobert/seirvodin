@@ -28,9 +28,9 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
   array_cov2 <- list_data[["array_cov2"]]
   year_per_age <- list_data[["year_per_age"]]
   
-  if(!all(names(init) %in% names(list_prior)) || !all(names(init) %in% names(list_min_max[["min"]])) ||
+  if(!all(names(init) %in% names(list_min_max[["min"]])) ||
      !all(names(init) %in% names(list_min_max[["max"]]))){
-    stop("init, list_prior, list_min_max[[`min`]], and list_min_max[[`max`]] should all contain the same elements")
+    stop("init, list_min_max[[`min`]], and list_min_max[[`max`]] should all contain the same elements")
   }
   
   # Create mcstate::pmcmc_parameter from initial, prior, and min_max
@@ -40,7 +40,7 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
   # Create proposal matrix
   if(is.null(proposal_matrix)){
     proposal_matrix <- matrix(0, nrow = length(list_pars), ncol = length(list_pars))
-    colnames(proposal_matrix) <- rownames(proposal_matrix) <- names(pars)
+    colnames(proposal_matrix) <- rownames(proposal_matrix) <- names(list_pars)
     diag(proposal_matrix) <- .01
   }
   
@@ -58,6 +58,8 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
     
     waning = if(list_specs$waning == "no") 0 else if(list_specs$waning == "since_vax") 1 else
       if (list_specs$waning == "since_eli") 2, 
+    
+    alpha = list_specs[["alpha"]], gamma = list_specs[["gamma"]], 
     
     dt = 1, year_start = list_specs$year_start, year_per_age = year_per_age,
     # If the following parameters are included in pars, this reference level will be ignored
@@ -102,6 +104,8 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
 #' @param array_cov1 Daily rate of vaccination (from S to V1)
 #' @param array_cov2 Daily rate of vaccination (from V1 to V2)
 #' @param array_new Daily number of births
+#' @param alpha Duration of incubation period.
+#' @param gamma Duration of infectious period.
 #' @param dt time step
 #' @param year_per_age Duration (in year) spent in each age group.
 #' @param waning Character values, corresponds to whether waning is included in the model, expect one of three values: "no", "since_vax", or "since_eli"
@@ -114,7 +118,7 @@ make_transform <- function(pars,m, d, import, N_time, N_age, N_reg,
                            S_init, V1_init, V2_init, Es_init, 
                            Ev1_init, Ev2_init, Is_init, Iv1_init, Iv2_init, 
                            R_init, RV1_init, RV2_init, array_cov1, array_cov2, 
-                           array_new, dt, year_per_age, waning, 
+                           array_new, dt, year_per_age, waning, alpha, gamma,
                            year_start){
   function(pars){
     # Extract parameters from the vector pars
@@ -134,14 +138,16 @@ make_transform <- function(pars,m, d, import, N_time, N_age, N_reg,
     if(any(names(pars) == "b")) b <- pars[["b"]]
     if(any(names(pars) == "c")) c <- pars[["c"]]
     if(any(names(pars) == "theta")) theta <- pars[["theta"]]
-    
+    if(any(names(pars) == "alpha")) alpha <- pars[["alpha"]]
+    if(any(names(pars) == "gamma")) gamma <- pars[["gamma"]]
+
     catchup <- rep(0, nrow(V1_init))
     catchup2 <- rep(0, nrow(V1_init))
     recov <- rep(0, nrow(V1_init))
     v <- rep(0, nrow(V1_init))
     
     V_tot <- V1_init + V2_init
-    # Set proportion of recovered in 2010 per age group
+    # Set proportion of recovered at year_start per age group
     recov <- R_init * 0
     
     for(i in seq_along(catchup)){
@@ -175,6 +181,8 @@ make_transform <- function(pars,m, d, import, N_time, N_age, N_reg,
          Ev1_init = Ev1_init, Ev2_init = Ev2_init, Is_init = Is_init, 
          Iv1_init = Iv1_init, Iv2_init = Iv2_init, 
          
+         alpha = 1 / alpha, gamma = 1 / gamma, 
+         
          recov = recov, R_init = R_init * 0, RV1_init = R_init * 0, RV2_init = R_init * 0,
          S_init = S_init + R_init,
          
@@ -199,9 +207,10 @@ create_pars <- function(init, prior, min, max){
   pars <- list()
   for(i in seq_along(init)){
     name_i <- names(init)[i]
+    if(!any(names(prior) == name_i)) p <- NULL else p <- prior[[name_i]]
     pars <- append(pars, list(mcstate::pmcmc_parameter(
       name = names(init)[i], initial = init[[name_i]], min = min[[name_i]], 
-      max = max[[name_i]], prior = prior[[name_i]])))
+      max = max[[name_i]], prior = p)))
   }
   return(pars)
 }

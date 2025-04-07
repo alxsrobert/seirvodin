@@ -422,6 +422,7 @@ public:
     int N_age;
     int N_reg;
     int N_time;
+    int N_year;
     int offset_variable_Es;
     int offset_variable_Ev1;
     int offset_variable_Ev2;
@@ -1494,8 +1495,6 @@ dust::pars_type<seirv_age_region> dust_pars<seirv_age_region>(cpp11::list user) 
   shared->dim_M_1 = shared->N_age;
   shared->dim_m_2 = shared->N_age;
   shared->dim_M_2 = shared->N_reg;
-  shared->dim_mean_import_1 = 10;
-  shared->dim_mean_import_2 = shared->N_reg;
   shared->dim_mean_R_1 = shared->N_age;
   shared->dim_mean_R_2 = shared->N_reg;
   shared->dim_mean_RV1_1 = shared->N_age;
@@ -1635,6 +1634,7 @@ dust::pars_type<seirv_age_region> dust_pars<seirv_age_region>(cpp11::list user) 
   shared->dim_V2p_2 = shared->N_reg;
   shared->dim_year_per_age = shared->N_age;
   shared->len_ageing = shared->N_age - 1;
+  shared->N_year = shared->N_time / (real_type) 365;
   shared->p_EI = 1 - dust::math::exp(- shared->alpha * shared->dt);
   shared->p_IR = 1 - dust::math::exp(- shared->gamma * shared->dt);
   internal.n_MS = std::vector<real_type>(shared->dim_n_MS);
@@ -1672,7 +1672,8 @@ dust::pars_type<seirv_age_region> dust_pars<seirv_age_region>(cpp11::list user) 
   shared->dim_lambda_t = shared->dim_lambda_t_1 * shared->dim_lambda_t_2;
   shared->dim_m = shared->dim_m_1 * shared->dim_m_2;
   shared->dim_M = shared->dim_M_1 * shared->dim_M_2;
-  shared->dim_mean_import = shared->dim_mean_import_1 * shared->dim_mean_import_2;
+  shared->dim_mean_import_1 = shared->N_year;
+  shared->dim_mean_import_2 = shared->N_reg;
   shared->dim_mean_R = shared->dim_mean_R_1 * shared->dim_mean_R_2;
   shared->dim_mean_RV1 = shared->dim_mean_RV1_1 * shared->dim_mean_RV1_2;
   shared->dim_mean_RV2 = shared->dim_mean_RV2_1 * shared->dim_mean_RV2_2;
@@ -1825,6 +1826,7 @@ dust::pars_type<seirv_age_region> dust_pars<seirv_age_region>(cpp11::list user) 
   shared->dim_array_cov1_12 = shared->dim_array_cov1_1 * shared->dim_array_cov1_2;
   shared->dim_array_cov2 = shared->dim_array_cov2_1 * shared->dim_array_cov2_2 * shared->dim_array_cov2_3;
   shared->dim_array_cov2_12 = shared->dim_array_cov2_1 * shared->dim_array_cov2_2;
+  shared->dim_mean_import = shared->dim_mean_import_1 * shared->dim_mean_import_2;
   shared->dim_prop_v1 = shared->dim_prop_v1_1 * shared->dim_prop_v1_2;
   shared->dim_prop_v1v2 = shared->dim_prop_v1v2_1 * shared->dim_prop_v1v2_2;
   shared->Es_init = user_get_array_fixed<real_type, 2>(user, "Es_init", shared->Es_init, {shared->dim_Es_init_1, shared->dim_Es_init_2}, NA_REAL, NA_REAL);
@@ -1849,7 +1851,6 @@ dust::pars_type<seirv_age_region> dust_pars<seirv_age_region>(cpp11::list user) 
   shared->Iv1_init = user_get_array_fixed<real_type, 2>(user, "Iv1_init", shared->Iv1_init, {shared->dim_Iv1_init_1, shared->dim_Iv1_init_2}, NA_REAL, NA_REAL);
   shared->Iv2_init = user_get_array_fixed<real_type, 2>(user, "Iv2_init", shared->Iv2_init, {shared->dim_Iv2_init_1, shared->dim_Iv2_init_2}, NA_REAL, NA_REAL);
   shared->m = user_get_array_fixed<real_type, 2>(user, "m", shared->m, {shared->dim_m_1, shared->dim_m_2}, NA_REAL, NA_REAL);
-  shared->mean_import = user_get_array_fixed<real_type, 2>(user, "mean_import", shared->mean_import, {shared->dim_mean_import_1, shared->dim_mean_import_2}, NA_REAL, NA_REAL);
   shared->offset_variable_Es = shared->dim_M + shared->dim_R + shared->dim_RV1 + shared->dim_RV2 + shared->dim_S + shared->dim_V1 + shared->dim_V1p + shared->dim_V2 + shared->dim_V2p + 4;
   shared->offset_variable_Ev1 = shared->dim_Es + shared->dim_M + shared->dim_R + shared->dim_RV1 + shared->dim_RV2 + shared->dim_S + shared->dim_V1 + shared->dim_V1p + shared->dim_V2 + shared->dim_V2p + 4;
   shared->offset_variable_Ev2 = shared->dim_Es + shared->dim_Ev1 + shared->dim_M + shared->dim_R + shared->dim_RV1 + shared->dim_RV2 + shared->dim_S + shared->dim_V1 + shared->dim_V1p + shared->dim_V2 + shared->dim_V2p + 4;
@@ -1953,6 +1954,7 @@ dust::pars_type<seirv_age_region> dust_pars<seirv_age_region>(cpp11::list user) 
       shared->initial_V2p[i - 1 + shared->dim_V2p_1 * (j - 1)] = dust::math::round(shared->V2_init[shared->dim_V2_init_1 * (j - 1) + i - 1] * (1 - dust::math::pow<real_type>(shared->v_fail, 2)));
     }
   }
+  shared->mean_import = user_get_array_fixed<real_type, 2>(user, "mean_import", shared->mean_import, {shared->dim_mean_import_1, shared->dim_mean_import_2}, NA_REAL, NA_REAL);
   return dust::pars_type<seirv_age_region>(shared, internal);
 }
 template <>

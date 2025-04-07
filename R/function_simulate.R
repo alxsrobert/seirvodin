@@ -50,7 +50,7 @@ generate_outbreaks <- function(
       generate_outbreaks_1sample(
         sample = samples[k,], model = model, data = all_data, aggreg_year = aggreg_year,
         states = rownames(all_output), n_part = n_part, waning = list_specs$waning, 
-        year_start = list_specs$year_start, N_time = list_specs$N_time, 
+        list_specs = list_specs, year_start = list_specs$year_start, N_time = list_specs$N_time, 
         deterministic = list_specs$deterministic)
     if(verbose) print(k)
   }
@@ -63,15 +63,18 @@ generate_outbreaks <- function(
 #' @param year_start starting year of the simulations.
 #' @param waning does the model include waning of immunity? Should be one of "no", "since_eli", "since_vax", or "early".
 #' @param nowane boolean: if set to TRUE, v_leak will be set to 0, used to quantify the impact of waning on the overall number of cases
-#' @param deterministic boolean: set to yes to run a deterministic version of the model
+#' @param deterministic boolean: set to TRUE to run a deterministic version of the model
 #' @param burnin Numeric: duration of the burnin period
 #' @param n_samples Numeric: Number of samples used to generate the simulations
-#'
+#' @param alpha Duration of incubation period.
+#' @param gamma Duration of infectious period.
+
 #' @return List of specifications
 #' @export
 #'
-specs_simulations <- function(N_year, year_start, waning, 
-                              burnin, n_samples, nowane = FALSE, deterministic = FALSE){
+specs_simulations <- function(N_year, year_start, waning, burnin, n_samples, 
+                              nowane = FALSE, deterministic = FALSE, alpha = 11, 
+                              gamma = 8){
   if(!(waning %in% c("no", "since_vax", "since_eli", "early"))) stop("waning should be `no`, `since_vax`, `since_eli`, or `early`")
   ## Duration of the run (in days)
   ## Duration of the run (in days)
@@ -84,7 +87,7 @@ specs_simulations <- function(N_year, year_start, waning,
   
   return(list(state_names = state_names, year_start = year_start, N_year = N_year, 
               N_time = N_time, waning = waning, burnin = burnin, n_samples = n_samples, 
-              nowane = nowane, deterministic = deterministic))
+              nowane = nowane, deterministic = deterministic, alpha = alpha, gamma = gamma))
 }
 
 #' Extract samples to generate simulations
@@ -107,7 +110,6 @@ extract_sample <- function(model_run, burnin, n_samples){
 #' Generate n_part simulations from a given sample
 #'
 #' @param sample vector containing the value of the different parameters
-#' @param model_run mcstate_pmcmc object, output from seirvodin::run_model().
 #' @param data list containing all datasets, output from compute_from_data().
 #' @param states vector containing the states that will be returned from the model run
 #' @param waning does the model include waning of immunity? "no", "since_eli", "since_vax", or "early".
@@ -115,12 +117,15 @@ extract_sample <- function(model_run, burnin, n_samples){
 #' @param deterministic boolean: set to yes to run a deterministic version of the model
 #' @param N_time Number of days the simulations run for.
 #' @param aggreg_year boolean: whether to aggregate the number of cases simulated by year.
+#' @param model dust model.
+#' @param list_specs list containing the specification of the simulations, output from seirvodin::specs_simulations().
+#' @param n_part Number of simulations run per parameter set.
 #'
 #' @return 3-dimensional array containing the number of cases by compartment (stratified by vaccine status, age and region), simulation, and day (or year if aggreg_year is TRUE)
 #' @noRd
 #'
 #' @keywords internal
-generate_outbreaks_1sample <- function(sample, model, data, states, 
+generate_outbreaks_1sample <- function(sample, model, data, states, list_specs,
                                        waning, year_start, deterministic, N_time,
                                        n_part = 1, aggreg_year = TRUE){
   
@@ -149,6 +154,8 @@ generate_outbreaks_1sample <- function(sample, model, data, states,
   c <- if(any(names(sample) == "c")) sample["c"] else 1
   theta <- if(any(names(sample) == "theta")) sample["theta"] else 1
   
+  if(any(names(sample) == "alpha")) alpha <- sample["alpha"] else alpha <- list_specs[["alpha"]]
+  if(any(names(sample) == "gamma")) gamma <- sample["gamma"] else gamma <- list_specs[["gamma"]]
   
   ## Define the seasonality parameters
   X <- sample["X"]
@@ -219,6 +226,7 @@ generate_outbreaks_1sample <- function(sample, model, data, states,
     array_cov1 = data$array_cov1[-1,,], array_cov2 = data$array_cov2[-1,,],
     array_new = data$new_birth, 
     dt = 1, 
+    alpha = 1 / alpha, gamma = 1 / gamma, 
     waning = if(waning == "no") 0 else if(waning == "since_vax") 1 else
       if (waning == "since_eli") 2 else if (waning == "early") 3,
     year_start = year_start, year_per_age = data$year_per_age

@@ -39,6 +39,10 @@
 \item{catchup2_X:}{(optional) Proportion of individuals vaccinated during a catch-up campaign (moving from S and V1 to V2) in a given age group, X corresponds to the age group targeted (e.g. catchup2_7 corresponds to the proportion of individuals (in V1 or S) in the seventh age group targeted by the catch-up campaign who will move to V2).}
 
 \item{v_X:}{(optional) Proportion of individuals vaccinated (moving from S to V1) in a given age group, X corresponds to the age group targeted (e.g. v_7 corresponds to the proportion of individuals (in S) in the seventh age group targeted by the catch-up campaign who will move to V1).##' @export seirv_age_region}
+
+\item{alpha:}{(optional) Duration of incubation period (default to 11 days).}
+
+\item{gamma:}{(optional) Duration of infectious period (default to 8 days).}
 }
 \description{
 seirv_age_region model. This is a dust model.

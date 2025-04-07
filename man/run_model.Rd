@@ -15,23 +15,136 @@ run_model(
 )
 }
 \arguments{
-\item{list_specs}{list containing the specification of the model fitting process, output from seirvodin::specs_run().}
+\item{list_specs}{list containing the specification of the model fitting 
+process, output from seirvodin::specs_run().}
 
-\item{list_data}{list containing all data needed for model fitting, expecting 8 elements: `ref_m`: contact matrix between age groups (matrix); `ref_d`: degree of connectivity between regions (matrix); `new_birth`: number of daily births per region (matrix); `mean_import_per_reg`: number of annual import by year and region (matrix);  `year_per_age`: duration of each age group (vector); `dt_vacc`: vaccine coverage by year and age (data table with at least 5 columns: years, region, coverage, yob (for year of birth), and dose); `N`: number of inhabitants at t0 by region and age (matrix);`dt_case`: data table containing the number of cases by date, age and region (three columns: date (numeric starting at 0); cases; and population (character containing unique id for a strata of vaccine status, age, and region))}
+\item{list_data}{list containing all data needed for model fitting, 
+expecting 8 elements: `ref_m`: contact matrix between age groups (matrix);
+`ref_d`: degree of connectivity between regions (matrix);
+`new_birth`: number of daily births per region (matrix); 
+`mean_import_per_reg`: number of annual import by year and region (matrix);  
+`year_per_age`: duration of each age group (vector); 
+`dt_vacc`: vaccine coverage by year and age (data table with at least 5 
+columns: years, region, coverage, yob (for year of birth), and dose); 
+`N`: number of inhabitants at t0 by region and age (matrix);
+`dt_case`: data table containing the number of cases by date, age and region
+(three columns: date (numeric starting at 0); cases; and population
+(character containing unique id for each strata of vaccine status, age, and
+region))}
 
 \item{init}{Vector of initial value for each parameter}
 
-\item{list_min_max}{list containing two vectors: `min` and `max`, each list contains the minimum (and maximum) value for each parameter}
+\item{list_prior}{List of prior function for each parameter (for parameters 
+without prior, the element should be  NULL)}
+
+\item{list_min_max}{list containing two vectors: `min` and `max`, each list
+contains the minimum (and maximum) value for each parameter}
 
 \item{model}{dust model.}
 
-\item{proposal_matrix}{Proposal matrix to run the MCMC, leave to NULL to start with default matrix}
-
-\item{prior}{List of prior function for each parameter (for parameters without prior, the element should be  NULL)}
+\item{proposal_matrix}{Proposal matrix to run the MCMC, leave to NULL to 
+start with default matrix}
 }
 \value{
 An `mcstate_pmcmc` object, containing all information on the model fit.
 }
 \description{
 Run odin.dust model
+}
+\examples{
+N_year = 5
+# Define the specifications
+specs <- specs_run(N_year = N_year, year_start = 2020, n_steps = 20, 
+                   waning = "no", alpha = 11, gamma = 8)
+
+# Contact matrix between age groups
+polymod <- socialmixr::polymod
+ref_m <- 1e6 * socialmixr::contact_matrix(
+  survey = polymod,
+  countries = "United Kingdom",
+  age.limits = c(0, 2, 5, 10),
+  symmetric = TRUE, per.capita = TRUE)$matrix.per.capita
+
+age <- c("[0-2)", "[2-5)", "[5-10)", "10+")
+
+# Duration of each age group
+year_per_age <- c(2, 3, 5, 70)
+
+# Degree of connectivity between regions
+ref_d <- matrix(c(1,2,2,1), nrow = 2, ncol = 2)
+
+# Number of daily births per region
+new_birth <- rbind(A = rexp(365 * N_year, 1/(500/365)), 
+                   B = rexp(365 * N_year, 1/(1000/365)))
+
+# Number of inhabitants at t0 by region and age
+N <- cbind(A = c(1000, 1500, 3000, 50000), B = c(2000, 3000, 75000, 90000))
+rownames(N) <- age
+
+# Number of annual import by year and region
+mean_import_per_reg <- cbind(A = round(rexp(N_year, 1/5)),
+                             B = round(rexp(N_year, 1/10)))
+
+
+# Vaccine coverage by year and age
+# first: vaccine coverage for the first dose
+dt_vacc_dose1 <- data.frame(
+  years = 2010:2024, region = rep(c("A", "B"), each = N_year + 10), 
+  coverage = runif(30, .85, .97), yob = rep(2010:2024 - 2, 2), dose = 1)
+# second: vaccine coverage for the second dose
+dt_vacc_dose2 <- data.frame(
+  years = 2010:2024, region = rep(c("A", "B"), each = N_year + 10), 
+  coverage = runif(30, .75, .85), yob = rep(2010:2024 - 5, 2), dose = 2)
+# Merge both vaccine coverage data
+dt_vacc <- data.table::as.data.table(rbind.data.frame(dt_vacc_dose1, dt_vacc_dose2))
+
+
+# Import daily number of cases by region, age group and vaccination status
+data("simulated_outbreak")
+
+## Create unique row id
+simulated_outbreak[, population := paste(vaccinated, region, age_groups, 
+                                         sep = "_")]
+simulated_outbreak[, population := factor(population)]
+## Select columns dates, cases, and population
+simulated_outbreak <- simulated_outbreak[, .(date, cases, population)]
+
+
+# Prepare the data
+list_data <- list(
+  ref_m = ref_m,
+  year_per_age = year_per_age,
+  ref_d = ref_d,
+  new_birth = new_birth,
+  N = N,
+  mean_import_per_reg = mean_import_per_reg,
+  dt_vacc = dt_vacc,
+  dt_case = simulated_outbreak
+)
+
+
+# Define initial parameter values
+init <- c(beta = 0.5, delta = 0.1, X = 0.1, Y = 0.1, X_import = 0.1, 
+          Y_import = 0.1, v_fail = 0.02, vacc = 0.5, report_import = 0.5, 
+          recov_3 = .5, recov_4 = .9, catchup2_3 = .2, b = .5, c = .5, 
+          theta = .5)
+# Define minimum and maximum values for each parameter
+list_min_max <- list(
+  min = c(beta = 0, delta = 0.003, X = 0, Y = 0, X_import = 0, Y_import = 0, 
+          v_fail = 0, vacc = 0, report_import = 0, recov_4 = 0, recov_3 = 0, 
+          catchup2_3 = 0, b = 0, c = 0, theta = 0),
+  max = c(beta = 50, delta = 0.2, X = 1, Y = 7, X_import = 1, Y_import = 7, 
+          v_fail = 1, vacc = 1, report_import = 1, recov_4 = 1, recov_3 = 1, 
+          catchup2_3 = 1, b = 1, c = 1, theta = 1)
+)
+# Define prior functions
+list_prior <- list(
+  delta = function(x) dnorm(1/x, mean = 100, sd = 15, log = TRUE),
+  v_fail = function(x) dnorm(x, mean = 0.02, sd = 0.01, log = TRUE),
+  report_import = function(x) dnorm(x, mean = 0.5, sd = 0.1, log = TRUE)
+)
+# Run the model
+model_run <- run_model(
+  specs, list_data, init, list_prior, list_min_max, seirv_age_region)
+
 }

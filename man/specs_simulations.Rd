@@ -11,7 +11,9 @@ specs_simulations(
   burnin,
   n_samples,
   nowane = FALSE,
-  deterministic = FALSE
+  deterministic = FALSE,
+  alpha = 11,
+  gamma = 8
 )
 }
 \arguments{
@@ -27,7 +29,11 @@ specs_simulations(
 
 \item{nowane}{boolean: if set to TRUE, v_leak will be set to 0, used to quantify the impact of waning on the overall number of cases}
 
-\item{deterministic}{boolean: set to yes to run a deterministic version of the model}
+\item{deterministic}{boolean: set to TRUE to run a deterministic version of the model}
+
+\item{alpha}{Duration of incubation period.}
+
+\item{gamma}{Duration of infectious period.}
 }
 \value{
 List of specifications
