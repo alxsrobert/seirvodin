@@ -41,7 +41,7 @@ compute_initial_state <- function(dt_vacc, N, year_per_age, year_start){
   regions <- colnames(N)
   age_names <- rownames(N)
   N_reg <- length(regions)
-  N_age <- length(age)
+  N_age <- length(age_names)
   
   # avoid data.table NOTE
   yob <- dose <- years <- region <- NULL
