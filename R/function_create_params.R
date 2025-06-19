@@ -6,12 +6,14 @@
 #' @param init Vector of initial value for each parameter
 #' @param list_prior List of prior function for each parameter (for parameters without prior, the element should be  NULL)
 #' @param list_min_max list containing two vectors: `min` and `max`, each list contains the minimum (and maximum) value for each parameter
+#' @param fixed_parameter named vector of fixed parameters 
 #'
 #' @return A `pmcmc_parameters` object, containing the initial parameters, the proposal matrix and the transform function
 #'
 #' @noRd
 #' @keywords internal
-create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_max, proposal_matrix){
+create_mcmc_pars <- function(list_data, list_specs, init, list_prior, 
+                             list_min_max, proposal_matrix, fixed_parameter){
   ## Extract elements from list_data (generated with the function compute_from_data)
   ref_d <- list_data[["ref_d"]]
   ref_m <- list_data[["ref_m"]]
@@ -30,7 +32,14 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
   
   if(!all(names(init) %in% names(list_min_max[["min"]])) ||
      !all(names(init) %in% names(list_min_max[["max"]]))){
-    stop("init, list_min_max[[`min`]], and list_min_max[[`max`]] should all contain the same elements")
+    stop(
+    "init, list_min_max[[`min`]], and list_min_max[[`max`]] should all contain the same elements")
+  }
+  if(any(names(init) %in% names(fixed_parameter))){
+    stop(paste0(paste(
+      names(init)[names(init) %in% names(fixed_parameter)], collapse = ", "
+    ), 
+    " defined both in init (i.e. parameters estimated by the model) and in fixed_parameter (i.e. fixed parameters)"))
   }
   
   # Create mcstate::pmcmc_parameter from initial, prior, and min_max
@@ -46,8 +55,8 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
   
   # Function for parameter transformation
   transform <- make_transform(
-    list_pars, m = ref_m, d = ref_d, import = mean_import_per_reg, 
-    N_time = N_time, N_age = N_age, N_reg = N_reg, 
+    list_pars, fixed = fixed_parameter, m = ref_m, d = ref_d, 
+    import = mean_import_per_reg, N_time = N_time, N_age = N_age, N_reg = N_reg, 
     
     S_init = S, V1_init = V1, V2_init = V2, R_init = R, RV1_init = RV1, RV2_init = RV2, 
     # All E and I compartments start empty
@@ -123,7 +132,7 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
 #'
 #' @noRd
 #' @keywords internal
-make_transform <- function(pars,m, d, import, N_time, N_age, N_reg, 
+make_transform <- function(pars, fixed, m, d, import, N_time, N_age, N_reg, 
                            b, c, theta, v_leak, v_sec, 
                            S_init, V1_init, V2_init, Es_init, 
                            Ev1_init, Ev2_init, Is_init, Iv1_init, Iv2_init, 
@@ -131,6 +140,8 @@ make_transform <- function(pars,m, d, import, N_time, N_age, N_reg,
                            array_new, dt, year_per_age, waning, alpha, gamma,
                            year_start){
   function(pars){
+    pars <- c(pars, fixed)
+    
     # Extract parameters from the vector pars
     beta <- pars[["beta"]]
     delta <- pars[["delta"]]

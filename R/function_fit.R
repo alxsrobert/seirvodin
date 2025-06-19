@@ -16,13 +16,15 @@
 #' (character containing unique id for each strata of vaccine status, age, and
 #' region))
 #' @param model dust model.
-#' @param proposal_matrix Proposal matrix to run the MCMC, leave to NULL to 
-#' start with default matrix
+#' @param proposal_matrix (optional) Proposal matrix to run the MCMC, leave to 
+#' NULL to start with default matrix
 #' @param init Vector of initial value for each parameter
 #' @param list_prior List of prior function for each parameter (for parameters 
 #' without prior, the element should be  NULL)
 #' @param list_min_max list containing two vectors: `min` and `max`, each list
 #' contains the minimum (and maximum) value for each parameter
+#' @param fixed_parameter (optional) named vector of fixed parameters 
+#' @param user_case_compare (optional) User-defined comparison function 
 #'
 #' @importFrom tidyr pivot_wider
 #' @return An `mcstate_pmcmc` object, containing all information on the model fit.
@@ -124,7 +126,8 @@
 #'   specs, list_data, init, list_prior, list_min_max, seirv_age_region)
 #' 
 run_model <- function(list_specs, list_data, init, list_prior, list_min_max, 
-                      model, proposal_matrix = NULL){
+                      model, user_case_compare = NULL, proposal_matrix = NULL, 
+                      fixed_parameter = NULL){
   
   ## Create list containing all data
   all_data <- compute_from_data(
@@ -135,7 +138,8 @@ run_model <- function(list_specs, list_data, init, list_prior, list_min_max,
   mcmc_pars <- create_mcmc_pars(
     list_specs = list_specs, list_data = all_data, init =init, 
     list_prior = list_prior, list_min_max = list_min_max, 
-    proposal_matrix = proposal_matrix
+    proposal_matrix = proposal_matrix,
+    fixed_parameter = fixed_parameter
   )
 
   data_wide <- pivot_wider(list_data$dt_case, names_from = "population", 
@@ -147,9 +151,15 @@ run_model <- function(list_specs, list_data, init, list_prior, list_min_max,
   )
   
   ## Initialise the model using the parameters previously defined
-  filter <- mcstate::particle_deterministic$new(
-    particle_data, model, case_compare, index
-  )
+  if(is.null(user_case_compare)){
+    filter <- mcstate::particle_deterministic$new(
+      particle_data, model, case_compare, index
+    )
+  } else {
+    filter <- mcstate::particle_deterministic$new(
+      particle_data, model, user_case_compare, index
+    )
+  }
   
   ## Create control object
   control <- mcstate::pmcmc_control(
