@@ -54,7 +54,17 @@ create_mcmc_pars <- function(list_data, list_specs, init, list_prior, list_min_m
     Es_init = S * 0, Ev1_init = S * 0, Ev2_init = S * 0, 
     Is_init = S * 0, Iv1_init = S * 0, Iv2_init = S * 0,
     
-    array_cov1 = array_cov1[-1,,], array_cov2 = array_cov2[-1,,], array_new = new_birth, 
+    array_cov1 = array(array_cov1[-1,,], 
+                       dim = c(nrow(array_cov1) - 1, ncol(array_cov1),
+                               dim(array_cov1)[3]),
+                       dimnames = list(rownames(array_cov1[-1,,]), 
+                                       colnames(array_cov1))), 
+    array_cov2 = array(array_cov2[-1,,], 
+                       dim = c(nrow(array_cov2) - 1, ncol(array_cov2), 
+                               dim(array_cov2)[3]),
+                       dimnames = list(rownames(array_cov2[-1,,]), 
+                                       colnames(array_cov2))), 
+    array_new = new_birth, 
     
     waning = if(list_specs$waning == "no") 0 else if(list_specs$waning == "since_vax") 1 else
       if (list_specs$waning == "since_eli") 2, 
