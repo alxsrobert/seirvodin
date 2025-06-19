@@ -172,17 +172,15 @@ generate_outbreaks_1sample <- function(sample, model, data, states, list_specs,
   recov <- rep(0, nrow(data$V1))
   v <- rep(0, nrow(data$V1))
   
-  # Compute the proportion of vaccinated in each region / age group
-  V_tot <- data$V1 + data$V2
   # Set proportion of recovered in 2010 per age group
   recov <- data$R * 0
   
   for(i in seq_along(catchup)){
     if(any(names(sample) == paste0("catchup_", i))){
-      # Individuals in V1 who were vaccinated during an MMR2 catchup in 1996 are set as V2
+      # Individuals in V1 who were vaccinated during an MMR2 catchup are set as V2
       catchup[i] <- sample[[paste0("catchup_", i)]]
-      data$V1[i,] <- round(V_tot[i, ] * (1 - catchup[i]))
-      data$V2[i,] <- round(V_tot[i, ] * (catchup[i]))
+      data$V2[i,] <- round(data$V2[i, ] + data$V1[i, ] * (catchup[i]))
+      data$V1[i,] <- round(data$V1[i, ] * (1 - catchup[i]))
     } 
     if(any(names(sample) == paste0("catchup2_", i))){
       catchup2[i] <- sample[[paste0("catchup2_", i)]]
@@ -196,8 +194,10 @@ generate_outbreaks_1sample <- function(sample, model, data, states, list_specs,
     if(any(names(sample) == paste0("recov_", i))) recov[i,] <- sample[[paste0("recov_", i)]]
     # Individuals who started vaccinated
     if(any(names(sample) == paste0("v_", i))){
-      data$V1[i,] <- round(S[i,] * v[i])
-      S[i,] <- (S[i,] - data$V1[i,])
+      v[i] <- sample[[paste0("v_", i)]]
+      S_vax <- round(S[i,] * v[i])
+      data$V1[i,] <- S_vax + data$V1[i,]
+      S[i,] <- (S[i,] - S_vax)
     }
   }
   
