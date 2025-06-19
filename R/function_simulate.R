@@ -207,6 +207,21 @@ generate_outbreaks_1sample <- function(sample, model, data, states, list_specs,
   
   mean_import <- import_per_reg / report_import
   
+  array_cov1 <- array(data$array_cov1[-1,,], 
+                      dim = c(nrow(data$array_cov1) - 1, 
+                              ncol(data$array_cov1), 
+                              dim(data$array_cov1)[3]),
+                      dimnames = list(rownames(data$array_cov1[-1,,]), 
+                                      colnames(data$array_cov1))
+  )
+  array_cov2 <- array(data$array_cov2[-1,,], 
+                      dim = c(nrow(data$array_cov2) - 1, 
+                              ncol(data$array_cov2), 
+                              dim(data$array_cov2)[3]),
+                      dimnames = list(rownames(data$array_cov2[-1,,]), 
+                                      colnames(data$array_cov2))
+  )
+  
   ## Create the age and region-stratified model
   seir_model <- model$new(pars = list(
     m = data$ref_m, d = data$ref_d, b = b, c = c, theta = theta,
@@ -223,7 +238,7 @@ generate_outbreaks_1sample <- function(sample, model, data, states, list_specs,
     S_init = S + R, recov = recov, 
     R_init = R * 0, RV1_init = R * 0, RV2_init = R * 0,
     
-    array_cov1 = data$array_cov1[-1,,], array_cov2 = data$array_cov2[-1,,],
+    array_cov1 = array_cov1, array_cov2 = array_cov2,
     array_new = data$new_birth, 
     dt = 1, 
     alpha = 1 / alpha, gamma = 1 / gamma, 

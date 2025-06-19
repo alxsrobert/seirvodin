@@ -153,17 +153,33 @@ compute_vax_cov <- function(dt_vacc, N, year_start, N_year){
                                      vacc_per_age$age), ]
   
   ## Create 3-d arrays containing the vaccine coverage (v1 then v2) per age / region / DAY
-  array_cov1 <- array(data = vacc_per_age$v1, 
-                      dim = c(N_age, N_reg, N_year),
-                      dimnames = list(unique(vacc_per_age$age), 
-                                      unique(vacc_per_age$regions))
-  )[,, rep(seq_len(N_year), each  = 365)]
+  if(N_reg == 1) {
+    array_cov1 <- array(data = vacc_per_age$v1, 
+                        dim = c(N_age, N_reg, N_year * 365),
+                        dimnames = list(unique(vacc_per_age$age), 
+                                        unique(vacc_per_age$regions))
+    )
+    
+    array_cov2 <- array(data = vacc_per_age$v2, 
+                        dim = c(N_age, N_reg, N_year * 365),
+                        dimnames = list(unique(vacc_per_age$age), 
+                                        unique(vacc_per_age$regions))
+    )
+  } else {
+    array_cov1 <- array(data = vacc_per_age$v1, 
+                        dim = c(N_age, N_reg, N_year),
+                        dimnames = list(unique(vacc_per_age$age), 
+                                        unique(vacc_per_age$regions))
+    )[,, rep(seq_len(N_year), each  = 365)]
+    
+    array_cov2 <- array(data = vacc_per_age$v2, 
+                        dim = c(N_age, N_reg, N_year),
+                        dimnames = list(unique(vacc_per_age$age), 
+                                        unique(vacc_per_age$regions))
+    )[,, rep(seq_len(N_year), each  = 365)]
+  }
   
-  array_cov2 <- array(data = vacc_per_age$v2, 
-                      dim = c(N_age, N_reg, N_year),
-                      dimnames = list(unique(vacc_per_age$age), 
-                                      unique(vacc_per_age$regions))
-  )[,, rep(seq_len(N_year), each  = 365)]
+  
   return(list(array_cov1 = array_cov1, array_cov2 = array_cov2))
 }
 
