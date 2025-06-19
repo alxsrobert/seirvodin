@@ -208,6 +208,8 @@ Various parameters can be estimated by the model, some are required for the mode
 * `catchup2_X`: (optional) Proportion of individuals vaccinated during a catch-up campaign (moving from S and V1 to V2) in a given age group, X corresponds to the age group targeted (e.g. `catchup2_7` corresponds to the proportion of individuals (in V1 or S) in the seventh age group targeted by the catch-up campaign who will move to V2).
 * `v_X`: (optional) Proportion of individuals vaccinated (moving from S to V1) in a given age group, X corresponds to the age group targeted (e.g. `v_7` corresponds to the proportion of individuals (in S) in the seventh age group targeted by the catch-up campaign who will move to V1).
 
+To fix some of the parameters, use the argument `fixed_parameter` when calling `model_run` (see example at the end of this section).
+
 In this example, the model will estimate the spatial kernel between A and B (`theta`, `b`, and `c` are estimated), a proportion of the population in individuals aged 5-10 and above 10 will start off recovered (`recov_3` and `recov_4` are estimated by the model). Finally, a proportion of individuals aged 5-10 will have received two doses of vaccine through a catch up campaign prior to the start of the fitting period (`catchup2_3` is estimated by the model).
 
 ```{r}
@@ -250,7 +252,9 @@ We can now use the specifications, data, initial value, prior distribution, mini
 ```{r}
 # Run the model
 model_run <- run_model(
-  specs, list_data, init, list_prior, list_min_max, seirv_age_region)
+  list_specs = specs, list_data = list_data, init = init, 
+  list_prior = list_prior, list_min_max = list_min_max, 
+  model = seirv_age_region)
 ```
 
 `model_run` is an `mcstate_pmcmc` object, and mainly contains two elements that help analyse the model fit: `pars` contains the value of each parameter at each iteration, and `probabilities` contains the log-prior, log-likelihood, and log-posterior for each iteration.
@@ -275,9 +279,29 @@ new_proposal_matrix <- cov(model_run$pars[-c(1:500),])
 
 # Run the model
 model_run <- run_model(
-  specs, list_data, new_init, list_prior, list_min_max, seirv_age_region,
-  new_proposal_matrix)
+  list_specs = specs, list_data = list_data, init = new_init, 
+  list_prior = list_prior, list_min_max = list_min_max, model = seirv_age_region, 
+  proposal_matrix = new_proposal_matrix)
+ggplot(model_run$probabilities, aes(x = seq_len(specs$n_steps), y = log_posterior)) + 
+  geom_line() +   
+  labs(x = "Iteration", y = "log-posterior")
 ```
+
+To run a similar model with a fixed waning rate of 0.05% per year after 5, we use the argument `fixed_parameter` in `model_run`.
+
+```{r}
+# Run the model
+model_run_with_waning <- run_model(
+  list_specs = specs, list_data = list_data, init = new_init, 
+  list_prior = list_prior, list_min_max = list_min_max, model = seirv_age_region, 
+  proposal_matrix = new_proposal_matrix, fixed_parameter = c(v_leak = .0005))
+
+ggplot(model_run_with_waning$probabilities, aes(x = seq_len(specs$n_steps), y = log_posterior)) + 
+  geom_line() +   
+  labs(x = "Iteration", y = "log-posterior")
+```
+
+To estimate the waning rate in the model, we would add an element named `v_leak` to `init` and `list_min_max`.
 
 # Simulating stochastic outbreaks
 
