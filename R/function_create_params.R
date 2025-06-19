@@ -175,7 +175,8 @@ make_transform <- function(pars, fixed, m, d, import, N_time, N_age, N_reg,
       if(any(names(pars) == paste0("catchup_", i))){
         # Individuals in V1 who were vaccinated during an MMR2 catchup are set as V2
         catchup[i] <- pars[[paste0("catchup_", i)]]
-        V2_init[i,] <- round(V_tot[i, ] * (catchup[i]))
+        V2_init[i,] <- round(V2_init[i, ] + V1_init[i, ] * (catchup[i]))
+        V1_init[i,] <- round(V1_init[i, ] * (1 - catchup[i]))
       } 
       if(any(names(pars) == paste0("catchup2_", i))){
         catchup2[i] <- pars[[paste0("catchup2_", i)]]
