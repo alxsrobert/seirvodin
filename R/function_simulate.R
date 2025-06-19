@@ -268,6 +268,7 @@ generate_outbreaks_1sample <- function(sample, model, data, states, list_specs,
     output_year <- array(NA, dim = c(length(states), ncol(output_sim), dim(output_sim)[3]/365),
                          dimnames = list(states))
   }
+  iter <- 0
   for (t in seq_len(N_time)) {
     ## Generate stochastic simulations
     output_sim[ , , t] <- seir_model$run(t)
