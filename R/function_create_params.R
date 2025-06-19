@@ -162,9 +162,8 @@ make_transform <- function(pars,m, d, import, N_time, N_age, N_reg,
     
     for(i in seq_along(catchup)){
       if(any(names(pars) == paste0("catchup_", i))){
-        # Individuals in V1 who were vaccinated during an MMR2 catchup in 1996 are set as V2
+        # Individuals in V1 who were vaccinated during an MMR2 catchup are set as V2
         catchup[i] <- pars[[paste0("catchup_", i)]]
-        V1_init[i,] <- round(V_tot[i, ] * (1 - catchup[i]))
         V2_init[i,] <- round(V_tot[i, ] * (catchup[i]))
       } 
       if(any(names(pars) == paste0("catchup2_", i))){
@@ -179,8 +178,10 @@ make_transform <- function(pars,m, d, import, N_time, N_age, N_reg,
       if(any(names(pars) == paste0("recov_", i))) recov[i,] <- pars[[paste0("recov_", i)]]
       # Individuals who started vaccinated
       if(any(names(pars) == paste0("v_", i))){
-        V1_init[i,] <- round(S_init[i,] * v[i])
-        S_init[i,] <- (S_init[i,] - V1_init[i,])
+        v[i] <- pars[[paste0("v_", i)]]
+        S_vax <- round(S_init[i,] * v[i])
+        V1_init[i,] <- S_vax + V1_init[i,]
+        S_init[i,] <- (S_init[i,] - S_vax)
       }
     }
     list(beta = beta, X = X, Y = Y, delta = delta, X_import = X_import, Y_import = Y_import,
