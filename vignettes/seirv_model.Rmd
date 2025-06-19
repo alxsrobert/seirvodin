@@ -2,10 +2,9 @@
 title: "Implementing an SEIRV Model"
 author: "Alexis Robert"
 date: "`r Sys.Date()`"
-output: html_document
 vignette: >
-  %\VignetteIndexEntry{seirv_model}
   %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{seirv_model}
   %\VignetteEncoding{UTF-8}
 ---
 

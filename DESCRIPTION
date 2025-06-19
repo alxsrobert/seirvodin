@@ -19,9 +19,11 @@ Suggests:
     ggplot2,
     knitr,
     rmarkdown,
-    testthat
+    testthat (>= 3.0.0)
 Description: Contains an SEIRV model stratified by age and region, implemented in odin_dust, along with functions to fit the model to case data, and generate stochastic simulations.
 License: MIT + file LICENSE
 Encoding: UTF-8
 VignetteBuilder: knitr
 RoxygenNote: 7.3.2
+LazyData: true
+Config/testthat/edition: 3

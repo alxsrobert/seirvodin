@@ -11,7 +11,9 @@ run_model(
   list_prior,
   list_min_max,
   model,
-  proposal_matrix = NULL
+  user_case_compare = NULL,
+  proposal_matrix = NULL,
+  fixed_parameter = NULL
 )
 }
 \arguments{
@@ -42,8 +44,12 @@ contains the minimum (and maximum) value for each parameter}
 
 \item{model}{dust model.}
 
-\item{proposal_matrix}{Proposal matrix to run the MCMC, leave to NULL to 
-start with default matrix}
+\item{user_case_compare}{(optional) User-defined comparison function}
+
+\item{proposal_matrix}{(optional) Proposal matrix to run the MCMC, leave to 
+NULL to start with default matrix}
+
+\item{fixed_parameter}{(optional) named vector of fixed parameters}
 }
 \value{
 An `mcstate_pmcmc` object, containing all information on the model fit.
